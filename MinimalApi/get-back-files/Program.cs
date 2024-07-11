@@ -31,7 +31,7 @@ if (app.Environment.IsDevelopment())
 }
 
 
-//an API that uses IFormFile to get file from a
+//an API that uses IFormFile to push a file to database and cloudinary.
 app.MapPost("/upload", async (IFormFile file) =>
 {
     if (file == null || file.Length == 0)
@@ -86,8 +86,6 @@ app.MapGet("/file/{id}", async (string id) =>
         return Results.NotFound("File not found.");
     }
 });
-
-app.MapGet("/AddHello", () => "Average school of peoples");
 
 app.UseHttpsRedirection();
 app.Run();
