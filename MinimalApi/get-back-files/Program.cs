@@ -1,6 +1,7 @@
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using Microsoft.Azure.Cosmos;
+using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -64,7 +65,7 @@ async Task<byte[]> CompressImageAsync(Stream inputStream)
     using var image = await Image.LoadAsync(inputStream);
     image.Mutate(x => x.Resize(new ResizeOptions
     {
-        Size = new SixLabors.ImageSharp.Size(800, 600), // Adjust size as needed
+        Size = new SixLabors.ImageSharp.Size(800, 600),
         Mode = ResizeMode.Max
     }));
     using var outputStream = new MemoryStream();
@@ -72,19 +73,30 @@ async Task<byte[]> CompressImageAsync(Stream inputStream)
     return outputStream.ToArray();
 }
 
+//Retrieve image from the cloudinary
 app.MapGet("/file/{id}", async (string id) =>
 {
     try
     {
+        // Read the item from Cosmos DB
         var response = await container.ReadItemAsync<dynamic>(id, new PartitionKey(id));
-        var filePath = response.Resource.filePath;
+        var publicId = response.Resource.publicId;
 
-        return Results.Ok(new { filePath = filePath });
+        // Get the image URL from Cloudinary
+        var imageUrl = cloudinary.Api.UrlImgUp.BuildUrl(publicId);
+
+        // Return the image URL and Id in the response
+        return Results.Ok(new { id = id, imageUrl = imageUrl });
     }
-    catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+    catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
     {
-        return Results.NotFound("File not found.");
+        return Results.NotFound("Image not found.");
     }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message);
+    }
+
 });
 
 app.UseHttpsRedirection();
